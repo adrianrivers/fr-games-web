@@ -1,16 +1,35 @@
+import { z } from 'zod'
+
+const gameSchema = z.object({
+  cover: z
+    .object({
+      image_id: z.string(),
+    })
+    .transform((cover) => ({
+      imageId: cover.image_id,
+    })),
+  genres: z.array(z.object({ name: z.string() })).optional(),
+  name: z.string(),
+  storyline: z.string().optional(),
+})
+
+export type GameData = z.infer<typeof gameSchema>
+
 export const fetchGameData = async (
-  accessToken: string,
+  accessToken: string | undefined,
   clientId: string
-): Promise<any[]> => {
+): Promise<GameData[]> => {
   const platformId = 167
   const language = 12 // French;
   const languageSupportType = 1 // Audio
   const pageSize = 500
   const currentTime = Math.floor(Date.now() / 1000)
 
-  let games: any[] = []
+  let data: GameData[] = []
   let page = 0
   let hasMoreResults = true
+
+  if (!accessToken) return []
 
   while (hasMoreResults) {
     const response = await fetch('https://api.igdb.com/v4/games', {
@@ -35,7 +54,7 @@ export const fetchGameData = async (
 
     if (results.length === 0) hasMoreResults = false
 
-    games = games.concat(results)
+    data = data.concat(results)
 
     console.log(`🚧 Fetched page ${page + 1}`)
 
@@ -44,6 +63,7 @@ export const fetchGameData = async (
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
 
-  console.info('Finished fetching games 🚀')
+  const games = z.array(gameSchema).parse(data)
+
   return games
 }
